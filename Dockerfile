@@ -1,17 +1,11 @@
 
-# Java 21 runtime
-FROM eclipse-temurin:21-jre
+FROM tomcat:9.0-jdk21-temurin
 
-# Application directory
-WORKDIR /app
+RUN rm -rf /usr/local/tomcat/webapps/*
 
-# Copy Maven-built JAR
-COPY target/*.jar app.jar
+COPY target/onlinebookstore.war /usr/local/tomcat/webapps/onlinebookstore.war
 
-# Application port
 EXPOSE 8080
 
-# Start application
-ENTRYPOINT ["java", "-jar", "app.jar"]
-
+CMD ["catalina.sh", "run"]
 
