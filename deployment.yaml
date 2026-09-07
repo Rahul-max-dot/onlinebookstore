@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: onlinebookstore
-          image: onlinebookstore:latest
+          image: rahulhnb/onlinebookstore:latest
           imagePullPolicy: Never
 
           ports:
