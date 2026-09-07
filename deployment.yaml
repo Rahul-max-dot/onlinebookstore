@@ -21,7 +21,7 @@ spec:
       containers:
         - name: onlinebookstore
           image: rahulhnb/onlinebookstore:latest
-          imagePullPolicy: Never
+          imagePullPolicy: Always
 
           ports:
             - containerPort: 8080
