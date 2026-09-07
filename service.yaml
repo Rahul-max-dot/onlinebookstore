@@ -1,19 +1,18 @@
 
 apiVersion: v1
 kind: Service
-
 metadata:
   name: onlinebookstore-service
 
 spec:
-  type: NodePort
+  type: LoadBalancer
 
   selector:
     app: onlinebookstore
 
   ports:
-    - port: 8080
+    - protocol: TCP
+      port: 8080
       targetPort: 8080
-      nodePort: 30080
 
 
