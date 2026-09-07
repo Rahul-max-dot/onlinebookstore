@@ -18,28 +18,39 @@ pipeline {
 
         stage('Maven Build') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                sh '''
+                    mvn clean package -DskipTests
+                '''
             }
         }
 
         stage('Check Build') {
             steps {
-                sh 'ls -lh target/'
+                sh '''
+                    echo "Checking WAR file..."
+                    ls -lh target/
+                '''
             }
         }
 
         stage('Docker Build') {
             steps {
                 sh '''
-                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
+                    echo "Building Docker image..."
+
+                    docker build \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} \
+                        -t ${IMAGE_NAME}:latest \
+                        .
                 '''
             }
         }
 
         stage('Docker Image Check') {
             steps {
-                sh 'docker images | grep onlinebookstore'
+                sh '''
+                    docker images | grep onlinebookstore
+                '''
             }
         }
 
@@ -64,7 +75,10 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 sh '''
+                    echo "Pushing version image..."
                     docker push ${IMAGE_NAME}:${IMAGE_TAG}
+
+                    echo "Pushing latest image..."
                     docker push ${IMAGE_NAME}:latest
                 '''
             }
@@ -72,14 +86,26 @@ pipeline {
 
         stage('Docker Logout') {
             steps {
-                sh 'docker logout'
+                sh '''
+                    docker logout
+                '''
             }
         }
 
-        stage('Load Image into Minikube') {
+        /*
+         * IMPORTANT:
+         * No "minikube image load" stage here.
+         *
+         * Kubernetes will pull the image directly
+         * from Docker Hub.
+         */
+
+        stage('Check Kubernetes') {
             steps {
                 sh '''
-                    minikube image load ${IMAGE_NAME}:${IMAGE_TAG}
+                    echo "Checking Kubernetes connection..."
+
+                    /usr/local/bin/kubectl get nodes
                 '''
             }
         }
@@ -87,8 +113,13 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
-                    kubectl apply -f deployment.yaml
-                    kubectl apply -f service.yaml
+                    echo "Applying Kubernetes Deployment..."
+
+                    /usr/local/bin/kubectl apply -f deployment.yaml
+
+                    echo "Applying Kubernetes Service..."
+
+                    /usr/local/bin/kubectl apply -f service.yaml
                 '''
             }
         }
@@ -96,8 +127,10 @@ pipeline {
         stage('Update Kubernetes Image') {
             steps {
                 sh '''
-                    kubectl set image deployment/onlinebookstore \
-                    onlinebookstore=${IMAGE_NAME}:${IMAGE_TAG}
+                    echo "Updating Kubernetes image..."
+
+                    /usr/local/bin/kubectl set image deployment/onlinebookstore \
+                        onlinebookstore=${IMAGE_NAME}:${IMAGE_TAG}
                 '''
             }
         }
@@ -105,9 +138,14 @@ pipeline {
         stage('Check Kubernetes Deployment') {
             steps {
                 sh '''
-                    kubectl get deployments
-                    kubectl get pods
-                    kubectl get services
+                    echo "Deployments:"
+                    /usr/local/bin/kubectl get deployments
+
+                    echo "Pods:"
+                    /usr/local/bin/kubectl get pods
+
+                    echo "Services:"
+                    /usr/local/bin/kubectl get services
                 '''
             }
         }
@@ -115,7 +153,11 @@ pipeline {
         stage('Deployment Status') {
             steps {
                 sh '''
-                    kubectl rollout status deployment/onlinebookstore
+                    echo "Waiting for deployment..."
+
+                    /usr/local/bin/kubectl rollout status \
+                        deployment/onlinebookstore \
+                        --timeout=180s
                 '''
             }
         }
@@ -124,21 +166,30 @@ pipeline {
     post {
 
         success {
-            echo '======================================'
-            echo 'PIPELINE SUCCESSFUL'
-            echo '======================================'
+            echo '''
+========================================
+       PIPELINE SUCCESSFUL
+========================================
+'''
             echo "Docker Image: ${IMAGE_NAME}:${IMAGE_TAG}"
             echo "Docker Image: ${IMAGE_NAME}:latest"
-            echo 'Kubernetes Deployment: onlinebookstore'
-            echo '======================================'
+            echo "Kubernetes Deployment: onlinebookstore"
+            echo "Kubernetes Service: onlinebookstore-service"
+            echo '''
+========================================
+'''
         }
 
         failure {
-            echo '======================================'
-            echo 'PIPELINE FAILED'
-            echo '======================================'
+            echo '''
+========================================
+          PIPELINE FAILED
+========================================
+'''
+        }
+
+        always {
+            echo "Build Number: ${BUILD_NUMBER}"
         }
     }
 }
-
-
