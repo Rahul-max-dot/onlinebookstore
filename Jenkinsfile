@@ -39,7 +39,7 @@ pipeline {
 
         stage('Docker Image Check') {
             steps {
-                sh 'docker images ${IMAGE_NAME}'
+                sh 'docker images | grep onlinebookstore'
             }
         }
 
@@ -75,23 +75,70 @@ pipeline {
                 sh 'docker logout'
             }
         }
+
+        stage('Load Image into Minikube') {
+            steps {
+                sh '''
+                    minikube image load ${IMAGE_NAME}:${IMAGE_TAG}
+                '''
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                sh '''
+                    kubectl apply -f deployment.yaml
+                    kubectl apply -f service.yaml
+                '''
+            }
+        }
+
+        stage('Update Kubernetes Image') {
+            steps {
+                sh '''
+                    kubectl set image deployment/onlinebookstore \
+                    onlinebookstore=${IMAGE_NAME}:${IMAGE_TAG}
+                '''
+            }
+        }
+
+        stage('Check Kubernetes Deployment') {
+            steps {
+                sh '''
+                    kubectl get deployments
+                    kubectl get pods
+                    kubectl get services
+                '''
+            }
+        }
+
+        stage('Deployment Status') {
+            steps {
+                sh '''
+                    kubectl rollout status deployment/onlinebookstore
+                '''
+            }
+        }
     }
 
     post {
+
         success {
             echo '======================================'
-            echo 'BUILD SUCCESSFUL'
-            echo 'Docker image pushed successfully!'
-            echo "Image: ${IMAGE_NAME}:${IMAGE_TAG}"
-            echo "Image: ${IMAGE_NAME}:latest"
+            echo 'PIPELINE SUCCESSFUL'
+            echo '======================================'
+            echo "Docker Image: ${IMAGE_NAME}:${IMAGE_TAG}"
+            echo "Docker Image: ${IMAGE_NAME}:latest"
+            echo 'Kubernetes Deployment: onlinebookstore'
             echo '======================================'
         }
 
         failure {
             echo '======================================'
-            echo 'BUILD FAILED'
+            echo 'PIPELINE FAILED'
             echo '======================================'
         }
     }
 }
+
 
